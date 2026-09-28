@@ -31,7 +31,7 @@ services:
     image: ghcr.io/ggml-org/llama.cpp:server
     command:
       - -hf
-      - Qwen/Qwen3-Embedding-0.6B-GGUF:Q4_K_M
+      - smarttasks/Qwen3-Embedding-0.6B-GGUF:Q4_K_M
       - --alias
       - qwen3-embedding-0.6b
       - --embeddings

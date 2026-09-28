@@ -84,7 +84,7 @@ docker compose up -d
 | `POSTGRES_PASSWORD` | пароль пользователя приложения |
 | `POSTGRES_ADMIN_PASSWORD` | пароль администратора контейнера PostgreSQL |
 
-По умолчанию запускаются `inclusionAI/Ling-3.0-tiny-GGUF:Q4_K_M` и `Qwen/Qwen3-Embedding-0.6B-GGUF:Q4_K_M` через отдельные сервисы llama.cpp. Ling Tiny получает JSON-инструкцию, результат дважды валидируется Pydantic и при ошибке запрашивается повторно. Qwen 0.6B возвращает 1024 измерения, то есть полностью совместим со схемой `vector(1024)` и ранее построенным индексом.
+По умолчанию запускаются `inclusionAI/Ling-3.0-tiny-GGUF:Q4_K_M` и `smarttasks/Qwen3-Embedding-0.6B-GGUF:Q4_K_M` через отдельные сервисы llama.cpp. Ling Tiny получает JSON-инструкцию, результат дважды валидируется Pydantic и при ошибке запрашивается повторно. Qwen 0.6B возвращает 1024 измерения, то есть полностью совместим со схемой `vector(1024)` и ранее построенным индексом.
 
 При необходимости можно вернуть ProxyAPI: укажите `https://api.proxyapi.ru/v1`, ключ и идентификаторы моделей в `.env`. Для облачного Qwen3 Embedding 4B нужно запрашивать `EMBEDDING_DIMENSIONS=1024`; при смене embedding-модели существующие векторы нельзя смешивать.
 
