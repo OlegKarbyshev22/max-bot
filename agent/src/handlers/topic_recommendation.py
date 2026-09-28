@@ -1,6 +1,6 @@
 from agent.src.recommendation.service import find_topic_recommendations
 from agent.src.courses.service import build_user_learning_context
-from agent.src.handlers.helper import validate_recommended_course_ids
+from agent.src.handlers.helper import ground_recommendation_answer, validate_recommended_course_ids
 from agent.src.generation.fallback import build_fallback_recommendation
 
 
@@ -90,17 +90,17 @@ def handle_topic_recommendation(request, trace, course_repository, response_gene
     if invalid_ids:
         trace.add_warning(f"LLM returned invalid course ids: {invalid_ids}")
 
-    selected_courses = [
-        course for course in university_courses + stepik_courses
-        if course.id in selected_course_ids
-    ]
-    if not selected_course_ids or not any(
-        course.name and course.name.lower() in answer.lower() for course in selected_courses
-    ):
+    if not selected_course_ids:
         fallback = build_fallback_recommendation(university_courses, stepik_courses)
         selected_course_ids = fallback.selected_course_ids
         answer = fallback.answer
-        trace.add_warning("Deterministic catalog fallback replaced an empty or ungrounded LLM recommendation")
+        trace.add_warning("Deterministic catalog fallback replaced an empty LLM recommendation")
+    else:
+        answer, selected_course_ids, was_grounded = ground_recommendation_answer(
+            answer, selected_course_ids, university_courses, stepik_courses
+        )
+        if was_grounded:
+            trace.add_warning("Added exact selected course titles to a paraphrased LLM response")
 
     trace.trace.recommended_course_ids = selected_course_ids
 

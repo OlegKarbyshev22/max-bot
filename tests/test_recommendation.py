@@ -5,6 +5,7 @@ from unittest.mock import Mock
 from pydantic import ValidationError
 
 from agent.src.generation.fallback import build_fallback_recommendation
+from agent.src.handlers.helper import ground_recommendation_answer
 from agent.src.models import RecommendationResult
 from agent.src.recommendation.service import find_topic_recommendations
 
@@ -63,6 +64,28 @@ class RecommendationCandidateTests(unittest.TestCase):
         self.assertIn("Базы данных", result.answer)
         self.assertIn("SQL для начинающих", result.answer)
         self.assertIn("https://stepik.org/course/20", result.answer)
+
+    def test_paraphrased_cloud_answer_keeps_personal_text_and_adds_exact_courses(self) -> None:
+        university = SimpleNamespace(
+            id=10,
+            source="university",
+            name="Базы данных",
+        )
+        stepik = SimpleNamespace(
+            id=20,
+            source="stepik",
+            name="SQL для начинающих",
+        )
+        answer, course_ids, was_grounded = ground_recommendation_answer(
+            "Эта траектория подходит твоей цели в аналитике.",
+            [20],
+            [university],
+            [stepik],
+        )
+        self.assertTrue(was_grounded)
+        self.assertEqual(course_ids, [10, 20])
+        self.assertTrue(answer.startswith("Подобранные курсы:\n— Базы данных"))
+        self.assertIn("подходит твоей цели", answer)
 
 
 if __name__ == "__main__":
