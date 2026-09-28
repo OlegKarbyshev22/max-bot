@@ -75,6 +75,7 @@ class RecommendationCandidateTests(unittest.TestCase):
             id=20,
             source="stepik",
             name="SQL для начинающих",
+            url="https://stepik.org/course/20/",
         )
         answer, course_ids, was_grounded = ground_recommendation_answer(
             "Эта траектория подходит твоей цели в аналитике.",
@@ -86,6 +87,24 @@ class RecommendationCandidateTests(unittest.TestCase):
         self.assertEqual(course_ids, [10, 20])
         self.assertTrue(answer.startswith("Подобранные курсы:\n— Базы данных"))
         self.assertIn("подходит твоей цели", answer)
+        self.assertIn("https://stepik.org/course/20/", answer)
+
+    def test_missing_stepik_url_is_restored_even_when_title_is_present(self) -> None:
+        stepik = SimpleNamespace(
+            id=20,
+            source="stepik",
+            name="SQL для начинающих",
+            url="https://stepik.org/course/20/",
+        )
+        answer, course_ids, was_grounded = ground_recommendation_answer(
+            "Курс SQL для начинающих подходит под твой запрос.",
+            [20],
+            [],
+            [stepik],
+        )
+        self.assertTrue(was_grounded)
+        self.assertEqual(course_ids, [20])
+        self.assertIn("https://stepik.org/course/20/", answer)
 
 
 if __name__ == "__main__":

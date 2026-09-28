@@ -47,10 +47,18 @@ def ground_recommendation_answer(
         course for course in selected_courses
         if course.name and course.name.lower() not in normalized_answer
     ]
-    if not selected_courses or not missing_titles:
+    missing_urls = [
+        course for course in selected_courses
+        if course.source == "stepik"
+        and getattr(course, "url", None)
+        and course.url not in answer
+    ]
+    if not selected_courses or (not missing_titles and not missing_urls):
         return answer, selected, False
 
     course_lines = ["Подобранные курсы:"]
     for course in selected_courses:
         course_lines.append(f"— {course.name}")
+        if course.source == "stepik" and getattr(course, "url", None):
+            course_lines.append(f"  Ссылка: {course.url}")
     return "\n".join(course_lines) + f"\n\n{answer.lstrip()}", selected, True
