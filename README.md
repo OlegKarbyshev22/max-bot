@@ -17,10 +17,10 @@
 MAX API (long polling)
         |
         v
-Python bot + AI agent  --->  Ling 3.0 Tiny Q4_K_M (llama.cpp)
+Python bot + AI agent  --->  ProxyAPI (OpenAI-compatible cloud API)
         |                              |
         v                              v
-PostgreSQL 18 + pgvector <--- Qwen3 Embedding 0.6B Q4_K_M
+PostgreSQL 18 + pgvector <--- Qwen3 Embedding 0.6B Q4_K_M (llama.cpp)
 ```
 
 - `bot.py` — MAX API, регистрация, меню и пользовательские сценарии;
@@ -32,15 +32,15 @@ PostgreSQL 18 + pgvector <--- Qwen3 Embedding 0.6B Q4_K_M
 
 ## Запуск в Docker
 
-Нужны Docker Desktop/Engine с Compose v2 и токен MAX-бота. Ключ LLM API не нужен: обе модели локальные.
+Нужны Docker Desktop/Engine с Compose v2, токен MAX-бота и отдельный ключ ProxyAPI.
 
 ```bash
 cp .env.example .env
-# заполнить MAX_BOT_TOKEN и пароли PostgreSQL
+# заполнить MAX_BOT_TOKEN, LLM_API_KEY и пароли PostgreSQL
 docker compose up --build -d
 ```
 
-Это одна команда для сборки и запуска всех обязательных локальных компонентов. При первом запуске PostgreSQL автоматически распакует каталог и применит миграции, а llama.cpp загрузит модели в persistent Docker volumes. Повторный запуск использует volumes и не импортирует данные или модели заново.
+Это одна команда для сборки и запуска всех обязательных локальных компонентов. При первом запуске PostgreSQL автоматически распакует каталог и применит миграции, а llama.cpp загрузит только embedding-модель в persistent Docker volume. Повторный запуск использует volumes и не импортирует данные или модели заново.
 
 Проверка состояния:
 
@@ -67,13 +67,13 @@ docker compose up -d
 | Переменная | Назначение |
 |---|---|
 | `MAX_BOT_TOKEN` | токен чат-бота MAX |
-| `LLM_BASE_URL` | URL локального chat-сервиса llama.cpp |
-| `LLM_API_KEY` | локальный ключ-заглушка |
+| `LLM_BASE_URL` | URL OpenAI-совместимого API ProxyAPI |
+| `LLM_API_KEY` | отдельный ключ ProxyAPI, не добавляется в Git |
 | `LLM_MODEL` | модель генерации |
 | `LLM_TIMEOUT` | таймаут запроса, секунды |
 | `LLM_MAX_TOKENS` | предел ответа модели |
-| `LLM_LOCAL_MODE` | дополнительные Qwen-специфичные параметры; для Ling — `false` |
-| `LLM_USE_JSON_SCHEMA` | отправляет `response_format=json_schema`; для Ling Tiny — `false` |
+| `LLM_LOCAL_MODE` | дополнительные параметры локального llama.cpp; для ProxyAPI — `false` |
+| `LLM_USE_JSON_SCHEMA` | отправляет `response_format=json_schema`; для Ling Flash — `false` |
 | `EMBEDDING_BASE_URL` | URL локального embeddings-сервиса llama.cpp |
 | `EMBEDDING_API_KEY` | локальный ключ-заглушка |
 | `EMBEDDING_MODEL` | embedding-модель |
@@ -84,9 +84,9 @@ docker compose up -d
 | `POSTGRES_PASSWORD` | пароль пользователя приложения |
 | `POSTGRES_ADMIN_PASSWORD` | пароль администратора контейнера PostgreSQL |
 
-По умолчанию запускаются `inclusionAI/Ling-3.0-tiny-GGUF:Q4_K_M` и `smarttasks/Qwen3-Embedding-0.6B-GGUF:Q4_K_M` через отдельные сервисы llama.cpp. Ling Tiny получает JSON-инструкцию, результат дважды валидируется Pydantic и при ошибке запрашивается повторно. Qwen 0.6B возвращает 1024 измерения, то есть полностью совместим со схемой `vector(1024)` и ранее построенным индексом.
+По умолчанию генерация выполняется через ProxyAPI: базовый адрес `https://api.proxyapi.ru/v1`, chat-модель `inclusionai/ling-3.0-flash`. Ling Flash получает JSON-инструкцию, результат дважды валидируется Pydantic и при ошибке запрашивается повторно. Внешний сервис нужен только для извлечения сущностей, маршрутизации и формирования ответа; для проверки требуется личный или временный ключ ProxyAPI в локальном `.env`.
 
-При необходимости можно вернуть ProxyAPI: укажите `https://api.proxyapi.ru/v1`, ключ и идентификаторы моделей в `.env`. Для облачного Qwen3 Embedding 4B нужно запрашивать `EMBEDDING_DIMENSIONS=1024`; при смене embedding-модели существующие векторы нельзя смешивать.
+Embedding-модель `smarttasks/Qwen3-Embedding-0.6B-GGUF:Q4_K_M` запускается внутри Docker. Она возвращает 1024 измерения, то есть полностью совместима со схемой `vector(1024)` и ранее построенным индексом. Её первичная загрузка занимает около 400 МБ. При смене embedding-модели существующие векторы нельзя смешивать.
 
 ## Данные и поиск
 
@@ -129,9 +129,9 @@ docker compose run --rm --no-deps -e RUN_DB_TESTS=1 -v "$PWD:/app" bot \
 
 - PostgreSQL использует `5432` только внутри Docker-сети и наружу не публикуется.
 - Бот обращается по HTTPS к MAX API (исходящий порт `443`).
-- `llm` и `embeddings` используют `8080` только внутри Docker-сети; наружу порты не публикуются.
-- Чтобы уложиться в умеренное потребление памяти, Ling запускается с одним слотом и окном 4096 токенов, Qwen Embedding — с одним слотом и окном 2048 токенов. Это не меняет размер или совместимость векторов.
-- При первом запуске Docker скачивает примерно 5.2 ГБ весов в volumes. Это не часть `docker build`, но зависит от скорости сети и может занять более пяти минут.
+- `embeddings` использует `8080` только внутри Docker-сети; наружу порт не публикуется.
+- Qwen Embedding запускается с одним слотом и окном 2048 токенов. Это не меняет размер или совместимость векторов.
+- При первом запуске Docker скачивает примерно 400 МБ весов embedding-модели в volume. Это не часть `docker build`.
 
 ## Ограничения
 
