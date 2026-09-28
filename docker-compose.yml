@@ -24,7 +24,7 @@ services:
       start_period: 20m
       retries: 60
     volumes:
-      - llm_model_cache:/root/.cache/llama.cpp
+      - llm_model_cache:/root/.cache
     restart: unless-stopped
 
   embeddings:
@@ -53,7 +53,7 @@ services:
       start_period: 5m
       retries: 60
     volumes:
-      - embedding_model_cache:/root/.cache/llama.cpp
+      - embedding_model_cache:/root/.cache
     restart: unless-stopped
 
   db:
