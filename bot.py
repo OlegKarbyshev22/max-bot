@@ -610,16 +610,23 @@ class MaxBot:
                     question,
                     recommendation_context,
                 )
-            answer = format_for_max(result.answer)
-            self.repository.log_message(user_id, "assistant", answer, result.route, result.course_ids)
+            recommendation_answer = format_for_max(result.answer)
             route_name = getattr(result.route, "value", result.route)
             if result.course_ids and route_name in {"topic_recommendation", "next_step"}:
                 session_data["recommendation_context"] = {
                     "recommended_course_ids": result.course_ids,
                     "recommendation_question": question,
-                    "recommendation_answer": answer,
+                    "recommendation_answer": recommendation_answer,
                 }
                 self.repository.set_session(user_id, READY, session_data)
+                answer = (
+                    f"{recommendation_answer}\n\n"
+                    "💡 Хочешь узнать, почему я выбрал именно эти курсы? "
+                    "Напиши: «Почему ты подобрал именно эти курсы?»"
+                )
+            else:
+                answer = recommendation_answer
+            self.repository.log_message(user_id, "assistant", answer, result.route, result.course_ids)
             course_buttons = []
             for course in self.repository.get_courses(result.course_ids)[:5]:
                 title = course["name"][:42]
