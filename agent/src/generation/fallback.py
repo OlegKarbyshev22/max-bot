@@ -17,7 +17,7 @@ def build_fallback_recommendation(
             details.append(f"сложность: {course.complexity_score}")
         if course.source == "stepik" and course.level:
             details.append(f"уровень: {course.level}")
-        lines.append(f"\n📘 {course.name}")
+        lines.append(f"\n📌 {course.name}")
         if details:
             lines.append("Характеристики: " + ", ".join(details))
         lines.append("Почему подходит: соответствует теме запроса.")

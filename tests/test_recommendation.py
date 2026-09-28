@@ -85,7 +85,7 @@ class RecommendationCandidateTests(unittest.TestCase):
         )
         self.assertTrue(was_grounded)
         self.assertEqual(course_ids, [10, 20])
-        self.assertTrue(answer.startswith("Подобранные курсы:\n— Базы данных"))
+        self.assertTrue(answer.startswith("Подобранные курсы:\n📌 Базы данных"))
         self.assertIn("подходит твоей цели", answer)
         self.assertIn("https://stepik.org/course/20/", answer)
 

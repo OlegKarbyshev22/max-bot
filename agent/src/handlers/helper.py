@@ -58,7 +58,7 @@ def ground_recommendation_answer(
 
     course_lines = ["Подобранные курсы:"]
     for course in selected_courses:
-        course_lines.append(f"— {course.name}")
+        course_lines.append(f"📌 {course.name}")
         if course.source == "stepik" and getattr(course, "url", None):
             course_lines.append(f"  Ссылка: {course.url}")
     return "\n".join(course_lines) + f"\n\n{answer.lstrip()}", selected, True
