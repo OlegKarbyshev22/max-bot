@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY agent ./agent
 COPY app ./app
+COPY certs ./certs
 COPY bot.py index_courses.py ./
 
 RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
