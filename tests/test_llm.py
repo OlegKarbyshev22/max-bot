@@ -41,6 +41,17 @@ class LLMClientTests(unittest.TestCase):
         self.assertNotIn("extra_body", kwargs)
         self.assertEqual(kwargs["messages"][0]["content"], "test")
 
+    def test_structured_response_can_use_prompt_only_json(self) -> None:
+        openai_client = Mock()
+        openai_client.chat.completions.create.return_value = response('{"value": 7}')
+        client = LLMClient(openai_client, "proxy-model", use_json_schema=False)
+        self.assertEqual(
+            client.complete_json([{"role": "system", "content": "JSON"}], Reply).value,
+            7,
+        )
+        kwargs = openai_client.chat.completions.create.call_args.kwargs
+        self.assertNotIn("response_format", kwargs)
+
 
 if __name__ == "__main__":
     unittest.main()

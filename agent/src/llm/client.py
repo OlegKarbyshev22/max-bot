@@ -27,11 +27,13 @@ class LLMClient:
         model: str,
         max_tokens: int = 1200,
         local_mode: bool = False,
+        use_json_schema: bool = True,
     ):
         self.client = client
         self.model = model.strip()
         self.max_tokens = max_tokens
         self.local_mode = local_mode
+        self.use_json_schema = use_json_schema
 
     @property
     def model_uri(self) -> str:
@@ -76,20 +78,24 @@ class LLMClient:
         last_error: Exception | None = None
 
         for attempt in range(2):
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=request_messages,
-                temperature=temperature,
-                max_tokens=self.max_tokens,
-                response_format={
+            request_options = {
+                "model": self.model,
+                "messages": request_messages,
+                "temperature": temperature,
+                "max_tokens": self.max_tokens,
+                **self._provider_options(),
+            }
+            if self.use_json_schema:
+                request_options["response_format"] = {
                     "type": "json_schema",
                     "json_schema": {
                         "name": response_model.__name__,
                         "strict": True,
                         "schema": schema,
                     },
-                },
-                **self._provider_options(),
+                }
+            response = self.client.chat.completions.create(
+                **request_options,
             )
             content = response.choices[0].message.content or ""
             try:

@@ -17,7 +17,7 @@
 MAX API (long polling)
         |
         v
-Python bot + AI agent  --->  OpenAI-compatible cloud API
+Python bot + AI agent  --->  ProxyAPI (OpenAI-compatible API)
         |
         v
 PostgreSQL 18 + pgvector
@@ -32,7 +32,7 @@ PostgreSQL 18 + pgvector
 
 ## Запуск в Docker
 
-Нужны Docker Desktop/Engine с Compose v2, токен MAX-бота и ключ облачного OpenAI-совместимого API.
+Нужны Docker Desktop/Engine с Compose v2, токен MAX-бота и ключ ProxyAPI.
 
 ```bash
 cp .env.example .env
@@ -73,6 +73,7 @@ docker compose up -d
 | `LLM_TIMEOUT` | таймаут запроса, секунды |
 | `LLM_MAX_TOKENS` | предел ответа модели |
 | `LLM_LOCAL_MODE` | включает llama.cpp-специфичные параметры; для облака `false` |
+| `LLM_USE_JSON_SCHEMA` | отправляет `response_format=json_schema`; для Ling 3.0 Flash — `false` |
 | `EMBEDDING_BASE_URL` | URL OpenAI-совместимого embeddings API |
 | `EMBEDDING_API_KEY` | ключ embeddings API |
 | `EMBEDDING_MODEL` | embedding-модель |
@@ -83,7 +84,9 @@ docker compose up -d
 | `POSTGRES_PASSWORD` | пароль пользователя приложения |
 | `POSTGRES_ADMIN_PASSWORD` | пароль администратора контейнера PostgreSQL |
 
-По умолчанию указан OpenAI API, но можно использовать любой сервис с совместимыми `/chat/completions` и `/embeddings`. Для старого локального llama.cpp задайте его URL, ключ-заглушку, локальную модель и `LLM_LOCAL_MODE=true`; для embeddings-провайдера без параметра `dimensions` задайте `EMBEDDING_SEND_DIMENSIONS=false` и убедитесь, что модель сама возвращает 1024 числа.
+По умолчанию настроен ProxyAPI: базовый адрес `https://api.proxyapi.ru/v1`, chat-модель `inclusionai/ling-3.0-flash`, embedding-модель `qwen/qwen3-embedding-4b`. Обычный Ling Flash не заявляет строгий structured output, поэтому JSON формируется по инструкции, дважды валидируется Pydantic и при ошибке запрашивается повторно. Для модели со structured output можно включить `LLM_USE_JSON_SCHEMA=true`.
+
+Qwen3 Embedding 4B нативно выдаёт 2560 измерений, но поддерживает Matryoshka-сокращение. Проект запрашивает 1024 измерения, совместимые с текущей схемой `vector(1024)`. После перехода с другой embedding-модели весь индекс обязательно строится заново. Для старого локального llama.cpp задайте его URL, ключ-заглушку, локальную модель и `LLM_LOCAL_MODE=true`.
 
 ## Данные и поиск
 

@@ -7,6 +7,7 @@ from agent.settings import (
     LLM_MAX_TOKENS,
     LLM_MODEL,
     LLM_TIMEOUT,
+    LLM_USE_JSON_SCHEMA,
 )
 from agent.src.llm.client import LLMClient
 
@@ -23,4 +24,5 @@ def build_llm_client() -> LLMClient:
         model=LLM_MODEL,
         max_tokens=LLM_MAX_TOKENS,
         local_mode=LLM_LOCAL_MODE,
+        use_json_schema=LLM_USE_JSON_SCHEMA,
     )
