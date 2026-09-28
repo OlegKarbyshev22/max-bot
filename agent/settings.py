@@ -18,7 +18,7 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.proxyapi.ru/v1").rstrip("/
 LLM_API_KEY = os.getenv("LLM_API_KEY", os.getenv("OPENAI_API_KEY", ""))
 LLM_MODEL = os.getenv("LLM_MODEL", "inclusionai/ling-3.0-flash")
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "180"))
-LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1200"))
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2500"))
 LLM_LOCAL_MODE = env_flag("LLM_LOCAL_MODE")
 LLM_USE_JSON_SCHEMA = env_flag("LLM_USE_JSON_SCHEMA")
 
