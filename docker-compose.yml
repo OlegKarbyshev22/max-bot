@@ -9,9 +9,9 @@ services:
       - --alias
       - inclusionai/ling-3.0-tiny-q4_k_m
       - --ctx-size
-      - "8192"
+      - "4096"
       - --parallel
-      - "2"
+      - "1"
       - --host
       - 0.0.0.0
       - --port
@@ -38,9 +38,9 @@ services:
       - --pooling
       - last
       - --ctx-size
-      - "32768"
+      - "2048"
       - --parallel
-      - "4"
+      - "1"
       - --host
       - 0.0.0.0
       - --port
