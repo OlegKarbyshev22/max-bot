@@ -1,0 +1,56 @@
+name: max-course-agent
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-max_courses}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-change_me_admin}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_PASSWORD:-change_me_app}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-max_courses}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-max_courses}
+      POSTGRES_USER: maxbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_app}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-max_courses}
+      POSTGRES_USER: maxbot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_app}
+    command: ["python", "index_courses.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

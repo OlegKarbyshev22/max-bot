@@ -1,0 +1,124 @@
+routes:
+  concept_explanation:
+    enabled: true
+
+    # БД для маршрута не нужна
+    requires_data: false
+
+    pre_gates:
+      - route_enabled
+      - role_allowed
+      - required_entities
+
+    # должна быть найдена хотя бы одна сущность из этих категорий
+    required_entities:
+      any_of:
+        - concepts
+        - directions
+
+    allowed_roles:
+      - student
+
+    generator:
+      type: concept_explanation
+
+    post_gates: []
+
+  specific_course:
+    enabled: true
+    requires_data: true
+
+    pre_gates:
+      - route_enabled
+      - role_allowed
+      - permission_check
+      - required_entities
+
+    required_entities:
+      all_of:
+        - course_names
+
+    required_permission:
+      - view_course_info
+
+    access_gates:
+      - course_access
+
+    generator:
+      type: specific_course
+
+    post_gates:
+      - response_not_empty
+      - no_internal_details
+      - grounded_course_response
+
+  topic_recommendation:
+    enabled: true
+    requires_data: true
+
+    pre_gates:
+      - route_enabled
+      - role_allowed
+      - permission_check
+      - required_entities
+
+    required_entities:
+      any_of:
+        - concepts
+        - directions
+
+    required_permission:
+      - receive_course_recommendations
+
+    generator:
+      type: topic_recommendation
+
+    post_gates:
+      - response_not_empty
+      - no_internal_details
+      - no_completed_courses
+      - university_priority
+      - grounded_recommendation
+
+  next_step:
+    enabled: true
+    requires_data: true
+
+    pre_gates:
+      - route_enabled
+      - role_allowed
+      - permission_check
+      - user_interests_present
+
+    required_permission:
+      - receive_next_step_recommendations
+
+    generator:
+      type: next_step
+
+    post_gates:
+      - response_not_empty
+      - no_internal_details
+      - no_user_courses_recommended
+      - university_priority
+      - grounded_recommendation
+
+  recommendation_explanation:
+    enabled: true
+    requires_data: true
+
+    pre_gates:
+      - route_enabled
+      - role_allowed
+      - permission_check
+
+    required_permission:
+      - receive_course_recommendations
+
+    generator:
+      type: recommendation_explanation
+
+    post_gates:
+      - response_not_empty
+      - no_internal_details
+      - grounded_course_response

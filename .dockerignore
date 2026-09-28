@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+logs
+.runtime
+tests
+PROJECT_MAP.md
+database_full_dump.sql*
+database_recommed.sql
+hacaton_recomend_courses-main*

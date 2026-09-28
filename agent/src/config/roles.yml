@@ -1,0 +1,16 @@
+roles:
+  student:
+    enabled: true
+
+    allowed_routes:
+      - concept_explanation
+      - specific_course
+      - topic_recommendation
+      - recommendation_explanation
+      - next_step
+
+    permissions:
+      explain_concepts: true
+      view_course_info: true
+      receive_course_recommendations: true
+      receive_next_step_recommendations: true
