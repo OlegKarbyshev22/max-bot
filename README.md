@@ -17,10 +17,10 @@
 MAX API (long polling)
         |
         v
-Python bot + AI agent  --->  ProxyAPI (OpenAI-compatible API)
-        |
-        v
-PostgreSQL 18 + pgvector
+Python bot + AI agent  --->  Ling 3.0 Tiny Q4_K_M (llama.cpp)
+        |                              |
+        v                              v
+PostgreSQL 18 + pgvector <--- Qwen3 Embedding 0.6B Q4_K_M
 ```
 
 - `bot.py` — MAX API, регистрация, меню и пользовательские сценарии;
@@ -32,15 +32,15 @@ PostgreSQL 18 + pgvector
 
 ## Запуск в Docker
 
-Нужны Docker Desktop/Engine с Compose v2, токен MAX-бота и ключ ProxyAPI.
+Нужны Docker Desktop/Engine с Compose v2 и токен MAX-бота. Ключ LLM API не нужен: обе модели локальные.
 
 ```bash
 cp .env.example .env
-# заполнить MAX_BOT_TOKEN, LLM_API_KEY, EMBEDDING_API_KEY и пароли PostgreSQL
+# заполнить MAX_BOT_TOKEN и пароли PostgreSQL
 docker compose up --build -d
 ```
 
-Это одна команда для сборки и запуска всех обязательных локальных компонентов. При первом запуске PostgreSQL автоматически распакует каталог и применит миграции; обычно это занимает 1–3 минуты. Повторный запуск использует Docker volume и не импортирует данные заново.
+Это одна команда для сборки и запуска всех обязательных локальных компонентов. При первом запуске PostgreSQL автоматически распакует каталог и применит миграции, а llama.cpp загрузит модели в persistent Docker volumes. Повторный запуск использует volumes и не импортирует данные или модели заново.
 
 Проверка состояния:
 
@@ -67,15 +67,15 @@ docker compose up -d
 | Переменная | Назначение |
 |---|---|
 | `MAX_BOT_TOKEN` | токен чат-бота MAX |
-| `LLM_BASE_URL` | URL OpenAI-совместимого chat API |
-| `LLM_API_KEY` | ключ chat API |
+| `LLM_BASE_URL` | URL локального chat-сервиса llama.cpp |
+| `LLM_API_KEY` | локальный ключ-заглушка |
 | `LLM_MODEL` | модель генерации |
 | `LLM_TIMEOUT` | таймаут запроса, секунды |
 | `LLM_MAX_TOKENS` | предел ответа модели |
-| `LLM_LOCAL_MODE` | включает llama.cpp-специфичные параметры; для облака `false` |
-| `LLM_USE_JSON_SCHEMA` | отправляет `response_format=json_schema`; для Ling 3.0 Flash — `false` |
-| `EMBEDDING_BASE_URL` | URL OpenAI-совместимого embeddings API |
-| `EMBEDDING_API_KEY` | ключ embeddings API |
+| `LLM_LOCAL_MODE` | дополнительные Qwen-специфичные параметры; для Ling — `false` |
+| `LLM_USE_JSON_SCHEMA` | отправляет `response_format=json_schema`; для Ling Tiny — `false` |
+| `EMBEDDING_BASE_URL` | URL локального embeddings-сервиса llama.cpp |
+| `EMBEDDING_API_KEY` | локальный ключ-заглушка |
 | `EMBEDDING_MODEL` | embedding-модель |
 | `EMBEDDING_DIMENSIONS` | обязательно `1024`, пока схема использует `vector(1024)` |
 | `ENABLE_VECTOR_SEARCH` | включает семантический поиск после индексации |
@@ -84,15 +84,15 @@ docker compose up -d
 | `POSTGRES_PASSWORD` | пароль пользователя приложения |
 | `POSTGRES_ADMIN_PASSWORD` | пароль администратора контейнера PostgreSQL |
 
-По умолчанию настроен ProxyAPI: базовый адрес `https://api.proxyapi.ru/v1`, chat-модель `inclusionai/ling-3.0-flash`, embedding-модель `qwen/qwen3-embedding-4b`. Обычный Ling Flash не заявляет строгий structured output, поэтому JSON формируется по инструкции, дважды валидируется Pydantic и при ошибке запрашивается повторно. Для модели со structured output можно включить `LLM_USE_JSON_SCHEMA=true`.
+По умолчанию запускаются `inclusionAI/Ling-3.0-tiny-GGUF:Q4_K_M` и `Qwen/Qwen3-Embedding-0.6B-GGUF:Q4_K_M` через отдельные сервисы llama.cpp. Ling Tiny получает JSON-инструкцию, результат дважды валидируется Pydantic и при ошибке запрашивается повторно. Qwen 0.6B возвращает 1024 измерения, то есть полностью совместим со схемой `vector(1024)` и ранее построенным индексом.
 
-Qwen3 Embedding 4B нативно выдаёт 2560 измерений, но поддерживает Matryoshka-сокращение. Проект запрашивает 1024 измерения, совместимые с текущей схемой `vector(1024)`. После перехода с другой embedding-модели весь индекс обязательно строится заново. Для старого локального llama.cpp задайте его URL, ключ-заглушку, локальную модель и `LLM_LOCAL_MODE=true`.
+При необходимости можно вернуть ProxyAPI: укажите `https://api.proxyapi.ru/v1`, ключ и идентификаторы моделей в `.env`. Для облачного Qwen3 Embedding 4B нужно запрашивать `EMBEDDING_DIMENSIONS=1024`; при смене embedding-модели существующие векторы нельзя смешивать.
 
 ## Данные и поиск
 
 В репозитории есть каталог примерно из 30 тысяч курсов и синтетические профили для демонстрации. Миграции создают расписание, академическую историю, выбранные курсы и ограничения целостности. Реальные пользовательские токены, телефоны и диалоги не публикуются.
 
-Сразу после запуска доступен лексический поиск по названиям, темам и ключевым словам. Семантический индекс строится отдельно, потому что массовая индексация через облачный API расходует квоту:
+Сразу после запуска доступен лексический поиск по названиям, темам и ключевым словам. Если уже есть 1024-мерный индекс Qwen 0.6B, его можно перенести в Docker без повторного расчёта. На чистом развёртывании семантический индекс строится отдельно:
 
 ```bash
 docker compose --profile tools run --rm indexer
@@ -128,8 +128,9 @@ docker compose run --rm --no-deps -e RUN_DB_TESTS=1 -v "$PWD:/app" bot \
 ## Порты и внешние сервисы
 
 - PostgreSQL использует `5432` только внутри Docker-сети и наружу не публикуется.
-- Бот обращается по HTTPS к MAX API и выбранному облачному LLM API (исходящий порт `443`).
-- Внешний LLM запускается вне Docker: его назначение — извлечение сущностей, выбор маршрута и генерация ответа; для проверки нужны URL, имя модели и API-ключ.
+- Бот обращается по HTTPS к MAX API (исходящий порт `443`).
+- `llm` и `embeddings` используют `8080` только внутри Docker-сети; наружу порты не публикуются.
+- При первом запуске Docker скачивает примерно 5.2 ГБ весов в volumes. Это не часть `docker build`, но зависит от скорости сети и может занять более пяти минут.
 
 ## Ограничения
 

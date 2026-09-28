@@ -1,6 +1,61 @@
 name: max-course-agent
 
 services:
+  llm:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command:
+      - -hf
+      - inclusionAI/Ling-3.0-tiny-GGUF:Q4_K_M
+      - --alias
+      - inclusionai/ling-3.0-tiny-q4_k_m
+      - --ctx-size
+      - "8192"
+      - --parallel
+      - "2"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --no-webui
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      start_period: 20m
+      retries: 60
+    volumes:
+      - llm_model_cache:/root/.cache/llama.cpp
+    restart: unless-stopped
+
+  embeddings:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command:
+      - -hf
+      - Qwen/Qwen3-Embedding-0.6B-GGUF:Q4_K_M
+      - --alias
+      - qwen3-embedding-0.6b
+      - --embeddings
+      - --pooling
+      - last
+      - --ctx-size
+      - "32768"
+      - --parallel
+      - "4"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --no-webui
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      start_period: 5m
+      retries: 60
+    volumes:
+      - embedding_model_cache:/root/.cache/llama.cpp
+    restart: unless-stopped
+
   db:
     build:
       context: .
@@ -33,6 +88,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      llm:
+        condition: service_healthy
+      embeddings:
+        condition: service_healthy
     restart: unless-stopped
 
   indexer:
@@ -51,6 +110,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      embeddings:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  llm_model_cache:
+  embedding_model_cache:
