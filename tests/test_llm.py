@@ -41,6 +41,17 @@ class LLMClientTests(unittest.TestCase):
         self.assertNotIn("extra_body", kwargs)
         self.assertEqual(kwargs["messages"][0]["content"], "test")
 
+    def test_generation_budget_override_does_not_change_routing_budget(self) -> None:
+        sdk = Mock()
+        sdk.chat.completions.create.return_value = response('{"value": 7}')
+        client = LLMClient(sdk, "model", max_tokens=1200)
+        client.complete_json([], Reply, max_tokens=5000)
+        self.assertEqual(sdk.chat.completions.create.call_args.kwargs["max_tokens"], 5000)
+        client.complete([], max_tokens=5000)
+        self.assertEqual(sdk.chat.completions.create.call_args.kwargs["max_tokens"], 5000)
+        client.complete([])
+        self.assertEqual(sdk.chat.completions.create.call_args.kwargs["max_tokens"], 1200)
+
     def test_structured_response_can_use_prompt_only_json(self) -> None:
         openai_client = Mock()
         openai_client.chat.completions.create.return_value = response('{"value": 7}')

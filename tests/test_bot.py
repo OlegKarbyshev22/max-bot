@@ -103,6 +103,12 @@ class BotHandlerTests(unittest.IsolatedAsyncioTestCase):
     def test_max_formatter_removes_unrendered_markdown(self) -> None:
         self.assertEqual(format_for_max("### **Заголовок**\n* пункт"), "📌 Заголовок\n— пункт")
 
+    def test_max_formatter_decodes_entities_and_course_links(self) -> None:
+        self.assertEqual(
+            format_for_max("→ Почему: SQL&#x20;и Python.&nbsp;\n[https://stepik.org/course/20/](https://stepik.org/course/20/) &#x20;"),
+            "→ Почему: SQL и Python. \nhttps://stepik.org/course/20/",
+        )
+
     async def test_known_phone_opens_menu(self) -> None:
         self.repository.authenticate_by_phone.return_value = {
             "id": 5,

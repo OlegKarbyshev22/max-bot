@@ -54,12 +54,12 @@ class LLMClient:
             return {}
         return {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}
 
-    def complete(self, messages: list[dict], temperature: float = 0) -> str:
+    def complete(self, messages: list[dict], temperature: float = 0, max_tokens: int | None = None) -> str:
         response = self.client.chat.completions.create(
             model=self.model,
             messages=self._messages(messages),
             temperature=temperature,
-            max_tokens=self.max_tokens,
+            max_tokens=max_tokens if max_tokens is not None else self.max_tokens,
             **self._provider_options(),
         )
         content = response.choices[0].message.content
@@ -72,6 +72,7 @@ class LLMClient:
         messages: list[dict],
         response_model: type[ModelT],
         temperature: float = 0,
+        max_tokens: int | None = None,
     ) -> ModelT:
         schema = response_model.model_json_schema()
         request_messages = self._messages(messages)
@@ -82,7 +83,7 @@ class LLMClient:
                 "model": self.model,
                 "messages": request_messages,
                 "temperature": temperature,
-                "max_tokens": self.max_tokens,
+                "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
                 **self._provider_options(),
             }
             if self.use_json_schema:

@@ -1,3 +1,5 @@
+import logging
+
 from agent.src.entities.models import LlmEntityCandidates
 from agent.src.llm.client import LLMClient
 from agent.src.routing.routes import Route
@@ -29,6 +31,7 @@ class ResponseGenerator:
                 message=message,
                 entities=entities,
                 user_profile=user_profile or {},
+                user_learning_context=user_learning_context,
                 university_courses=university_courses or [],
                 stepik_courses=stepik_courses or [],
             )
@@ -52,12 +55,13 @@ class ResponseGenerator:
                 courses=courses,
                 user_learning_context=user_learning_context,
                 conversation_context=conversation_context,
+                user_profile=user_profile or {},
             )
 
         raise ValueError(f"No response generator implemented for route: {route}")
 
     def _generate_recommendation_explanation(
-        self, message: str, courses: list, user_learning_context, conversation_context
+        self, message: str, courses: list, user_learning_context, conversation_context, user_profile
     ) -> str:
         course_data = [self._public_target_course(course) for course in courses]
         learning_data = {
@@ -74,6 +78,9 @@ class ResponseGenerator:
 
             Новый вопрос пользователя:
             {message}
+
+            Профиль пользователя:
+            {user_profile}
 
             Рекомендованные курсы:
             {course_data}
@@ -189,7 +196,7 @@ class ResponseGenerator:
         data["id"] = course.id
         return data
 
-    def _generate_topic_recommendation(self, message: str, entities, user_profile: dict, university_courses: list, stepik_courses: list) -> RecommendationResult:
+    def _generate_topic_recommendation(self, message: str, entities, user_profile: dict, university_courses: list, stepik_courses: list, user_learning_context=None) -> RecommendationResult:
 
             university_data = [self._internal_target_course(course) for course in university_courses]
             stepik_data = [self._internal_target_course(course) for course in stepik_courses]
@@ -203,6 +210,9 @@ class ResponseGenerator:
 
                 Данные профиля и успеваемости пользователя:
                 {user_profile}
+
+                История обучения (completed — завершены, current — в процессе, selected — только выбраны):
+                {self._learning_data(user_learning_context)}
 
                 Университетские кандидаты:
                 {university_data}
@@ -222,14 +232,7 @@ class ResponseGenerator:
                 },
             ]
 
-            try:
-                return self.llm_client.complete_json(
-                    messages=messages,
-                    response_model=RecommendationResult,
-                    temperature=0.2,
-                )
-            except ValueError:
-                return build_fallback_recommendation(university_courses, stepik_courses)
+            return self._generate_recommendation(messages, university_courses, stepik_courses)
 
     def _generate_next_step(self, message: str, entities, user_interests: list[str], user_profile: dict, user_learning_context, university_courses: list, stepik_courses: list) -> RecommendationResult:
 
@@ -276,15 +279,56 @@ class ResponseGenerator:
             },
         ]
 
+        return self._generate_recommendation(messages, university_courses, stepik_courses)
+
+    def _learning_data(self, context):
+        return {
+            status: [self._public_course_summary(course) for course in getattr(context, status, [])]
+            for status in ("completed", "current", "selected")
+        }
+
+    def _generate_recommendation(self, messages, university_courses, stepik_courses):
         try:
-            return self.llm_client.complete_json(
+            result = self.llm_client.complete_json(
                 messages=messages,
                 response_model=RecommendationResult,
                 temperature=0.2,
+                max_tokens=max(self.llm_client.max_tokens, 5000),
             )
+            allowed_ids = {course.id for course in university_courses + stepik_courses}
+            if not result.answer.strip() or not result.selected_course_ids or any(
+                course_id not in allowed_ids for course_id in result.selected_course_ids
+            ):
+                raise ValueError("Recommendation must contain text and catalog course IDs")
+            return result
         except ValueError:
-            return build_fallback_recommendation(
-                university_courses,
-                stepik_courses,
-                intro="На основе твоих интересов предлагаю следующие варианты:",
+            logging.getLogger(__name__).warning(
+                "Structured recommendation failed; retrying as text with fixed catalog courses"
             )
+            selected = (university_courses + stepik_courses)[:3]
+            # Keep the original profile/history, but remove the conflicting JSON instructions.
+            recovery_messages = [
+                {"role": "system", "content": RECOMMENDATION_EXPLANATION_SYSTEM_PROMPT + """
+                    Сформируй новую подборку обычным текстом, без JSON.
+                    Рекомендуй только курсы из списка «Выбранные курсы» ниже, все по порядку.
+                    Для каждого: 📌 точное название, → Уровень/сложность (если указаны),
+                    → Почему: 2–4 предложения, → Ссылка: точный URL (если указан).
+                    Свяжи конкретное содержание курса с запросом и данными профиля.
+                    completed — завершённые курсы; current и selected не доказывают освоение.
+                    Если сведений недостаточно, прямо укажи это. Не придумывай факты.
+                    Общий лимит для этой подборки — 4500 символов.
+                """},
+                messages[1],
+                {"role": "user", "content": "Выбранные курсы:\n" + str([
+                    self._public_target_course(course) for course in selected
+                ])},
+            ]
+            try:
+                answer = self.llm_client.complete(
+                    messages=recovery_messages, temperature=0.2,
+                    max_tokens=max(self.llm_client.max_tokens, 5000),
+                )
+                return RecommendationResult(selected_course_ids=[course.id for course in selected], answer=answer)
+            except ValueError:
+                logging.getLogger(__name__).warning("Text recommendation failed; showing catalog only")
+                return build_fallback_recommendation(university_courses, stepik_courses)

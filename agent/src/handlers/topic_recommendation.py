@@ -54,7 +54,9 @@ def handle_topic_recommendation(request, trace, course_repository, response_gene
         message=request.message,
         route=request.route,
         entities=request.entities,
+        user_learning_context=learning_context,
         user_profile={
+            "interests": request.user.interests,
             "goal": request.user.goal,
             "experience": request.user.experience,
             "academic_results": [item.model_dump() for item in request.user.academic_results],

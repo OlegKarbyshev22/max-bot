@@ -2,6 +2,7 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import html
 import logging
 import os
 import re
@@ -139,6 +140,8 @@ def split_message(text: str, max_length: int = 3500) -> list[str]:
 
 def format_for_max(text: str) -> str:
     """MAX text messages do not render Markdown, so use broadly supported text."""
+    text = html.unescape(text).replace("\xa0", " ")
+    text = re.sub(r"\[([^\]\n]+)\]\((https?://[^\s)]+)\)", lambda match: match[2] if match[1] == match[2] else f"{match[1]}: {match[2]}", text)
     text = text.replace("\r\n", "\n").replace("**", "").replace("__", "")
     text = re.sub(r"^\s*#{1,6}\s*", "📌 ", text, flags=re.MULTILINE)
     text = re.sub(r"^\s*[-*•]\s+", "— ", text, flags=re.MULTILINE)

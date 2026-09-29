@@ -33,6 +33,12 @@ def handle_recommendation_explanation(
         route=request.route,
         entities=request.entities,
         courses=courses,
+        user_profile={
+            "goal": request.user.goal,
+            "experience": request.user.experience,
+            "interests": request.user.interests,
+            "academic_results": [item.model_dump() for item in request.user.academic_results],
+        },
         user_learning_context=learning_context,
         conversation_context=request.context,
     )
