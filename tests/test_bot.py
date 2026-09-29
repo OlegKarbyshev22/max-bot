@@ -47,6 +47,7 @@ class BotHandlerTests(unittest.IsolatedAsyncioTestCase):
             {"id": 21, "name": "Карбышев Олег"},
             {"id": 22, "name": "Юрьева Злата"},
             {"id": 23, "name": "Тимур Гиззятов"},
+            {"id": 24, "name": "Алина Соколова", "is_external_university": True},
         ]
         self.bot = MaxBot(
             "test-token",
@@ -150,6 +151,7 @@ class BotHandlerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("профиль для демо", body["text"])
         button_texts = [row[0]["text"] for row in body["attachments"][0]["payload"]["buttons"]]
         self.assertIn("👤 Карбышев Олег", button_texts)
+        self.assertIn("👤 Алина Соколова (внешний вуз)", button_texts)
 
     async def test_self_registration_choice_starts_questionnaire(self) -> None:
         self.repository.get_session.return_value = {

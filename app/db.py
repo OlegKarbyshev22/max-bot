@@ -71,7 +71,10 @@ class BotRepository:
         with get_db_connection() as connection, connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT u.id, u.name, u.study_year, un.name AS university_name,
+                SELECT u.id, u.name, u.study_year,
+                       COALESCE(un.name, u.custom_university_name) AS university_name,
+                       (u.university_id IS NULL AND u.custom_university_name IS NOT NULL)
+                           AS is_external_university,
                        faculty.name AS faculty_name, specialty.name AS specialty_name,
                        student_group.name AS group_name
                 FROM users u

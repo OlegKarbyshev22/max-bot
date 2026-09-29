@@ -63,10 +63,18 @@ class PostgresIntegrationTests(unittest.TestCase):
 
     def test_synthetic_profile_is_copied_for_new_user(self) -> None:
         profiles = self.repository.list_synthetic_profiles()
-        self.assertEqual(len(profiles), 3)
+        self.assertEqual(len(profiles), 4)
+        external = next(profile for profile in profiles if profile["name"] == "Алина Соколова")
+        self.assertTrue(external["is_external_university"])
+        self.assertEqual(external["university_name"], "Казанский федеральный университет")
         selected = profiles[0]
-        self.repository.activate_synthetic_profile(
+        external_user = self.repository.activate_synthetic_profile(
             self.max_user_id, self.phone, selected["id"]
+        )
+        self.assertIsNone(external_user["university_id"])
+        self.assertEqual(
+            external_user["custom_university_name"],
+            "Казанский федеральный университет",
         )
         with get_db_connection() as db, db.cursor() as cur:
             cur.execute(
@@ -79,7 +87,7 @@ class PostgresIntegrationTests(unittest.TestCase):
                 """,
                 (self.max_user_id,),
             )
-        selected = profiles[1]
+        selected = next(profile for profile in profiles if profile["name"] == "Тимур Гиззятов")
         user = self.repository.activate_synthetic_profile(
             self.max_user_id, self.phone, selected["id"]
         )
@@ -97,7 +105,7 @@ class PostgresIntegrationTests(unittest.TestCase):
             template_courses = cur.fetchall()
         self.assertEqual(copied_courses, template_courses)
         self.assertEqual(len(copied_courses), 2)
-        self.assertEqual(len(self.repository.list_synthetic_profiles()), 3)
+        self.assertEqual(len(self.repository.list_synthetic_profiles()), 4)
 
     def test_registration_profile_history_and_unique_max_id(self) -> None:
         with get_db_connection() as db, db.cursor() as cur:

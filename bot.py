@@ -311,7 +311,11 @@ class MaxBot:
             [callback_button("✍️ Зарегистрироваться самостоятельно", "auth:self")]
         ]
         rows.extend(
-            [callback_button(f"👤 {item['name']}", f"auth:synthetic:{item['id']}")]
+            [callback_button(
+                f"👤 {item['name']}"
+                + (" (внешний вуз)" if item.get("is_external_university") else ""),
+                f"auth:synthetic:{item['id']}",
+            )]
             for item in self.repository.list_synthetic_profiles()
         )
         return text_message(
